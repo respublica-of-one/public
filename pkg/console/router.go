@@ -12,12 +12,14 @@ type Router struct {
 	contextPrefix   string
 	next            map[string]Router
 	handler         Handler
+	childHandlers   map[string]Handler
 	fallbackHandler Handler
 }
 
 func NewRouter() Router {
 	return Router{
-		next: make(map[string]Router),
+		next:          make(map[string]Router),
+		childHandlers: make(map[string]Handler),
 	}
 }
 
@@ -25,12 +27,25 @@ func (r Router) AddNext(name string, router Router) Router {
 	if router.fallbackHandler == nil && r.fallbackHandler != nil {
 		router.fallbackHandler = r.fallbackHandler
 	}
-	r.next[name] = router
+	names := strings.Split(name, "|")
+	for _, currentName := range names {
+		r.next[currentName] = router
+	}
+	return r
+}
+
+func (r Router) SetChildHandler(name string, handler Handler) Router {
+	r.childHandlers[name] = handler
 	return r
 }
 
 func (r Router) SetHandler(handler Handler) Router {
 	r.handler = handler
+	return r
+}
+
+func (r Router) SetFallbackHandler(handler Handler) Router {
+	r.fallbackHandler = handler
 	return r
 }
 
@@ -53,6 +68,14 @@ func (r Router) Resolve(ctx context.Context, args []string) error {
 	if len(args) > 0 {
 		if next, found := r.next[args[0]]; found {
 			return next.Resolve(ctx, args[1:])
+		}
+		for key, handler := range r.childHandlers {
+			names := strings.Split(key, "|")
+			for _, name := range names {
+				if name == args[0] {
+					return handler(ctx, args[1:])
+				}
+			}
 		}
 	}
 	if r.handler != nil {

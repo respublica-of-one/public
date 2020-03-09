@@ -21,17 +21,24 @@ func idGetHandler(ctx context.Context, args []string) error {
 	return nil
 }
 
+func idChildHandler(ctx context.Context, args []string) error {
+	fmt.Printf("CHILD: %+v\n", ctx)
+	return nil
+}
+
 func main() {
 
 	router := console.NewRouter().
 		AddNext("echo", console.NewRouter().
 			SetContextPrefix("name value").
+			SetChildHandler("child1", idChildHandler).
+			SetChildHandler("child2", idChildHandler).
 			SetHandler(echo)).
 		AddNext("error", console.NewRouter()).
-		AddNext("id", console.NewRouter().
+		AddNext("id|i", console.NewRouter().
 			AddNext("set", console.NewRouter().SetHandler(idSetHandler)).
 			AddNext("get", console.NewRouter().SetHandler(idGetHandler)))
 
-	fmt.Println(router.Resolve(context.Background(), []string{"id", "set", "r1", "here"}))
+	fmt.Println(router.Resolve(context.Background(), []string{"echo", "name", "val", "child", "param", "pam", "pam"}))
 
 }
