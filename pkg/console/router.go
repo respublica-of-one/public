@@ -9,9 +9,10 @@ import (
 type Handler func(context.Context, []string) error
 
 type Router struct {
-	contextPrefix string
-	next          map[string]Router
-	handler       Handler
+	contextPrefix   string
+	next            map[string]Router
+	handler         Handler
+	fallbackHandler Handler
 }
 
 func NewRouter() Router {
@@ -21,6 +22,9 @@ func NewRouter() Router {
 }
 
 func (r Router) AddNext(name string, router Router) Router {
+	if router.fallbackHandler == nil && r.fallbackHandler != nil {
+		router.fallbackHandler = r.fallbackHandler
+	}
 	r.next[name] = router
 	return r
 }
@@ -51,8 +55,14 @@ func (r Router) Resolve(ctx context.Context, args []string) error {
 			return next.Resolve(ctx, args[1:])
 		}
 	}
-	if r.handler == nil {
+	if r.handler != nil {
+		return r.handler(ctx, args)
+	}
+	if r.handler == nil && r.fallbackHandler == nil {
 		return errors.New("handler is nil")
 	}
-	return r.handler(ctx, args)
+	if r.fallbackHandler == nil {
+		return errors.New("fallback handler is nil")
+	}
+	return r.fallbackHandler(ctx, args)
 }
