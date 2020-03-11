@@ -2,90 +2,73 @@ package console
 
 import (
 	"context"
-	"errors"
-	"strings"
 )
 
-type Handler func(context.Context, []string) error
-
 type Router struct {
-	contextPrefix   string
-	next            map[string]Router
-	handler         Handler
-	childHandlers   map[string]Handler
-	fallbackHandler Handler
+	parent       *Router
+	args         []argsMatcher
+	next         []*Router
+	handlerFuncs []RouterHandlerFuncMatcher
 }
 
-func NewRouter() Router {
-	return Router{
-		next:          make(map[string]Router),
-		childHandlers: make(map[string]Handler),
-	}
+func NewRouter() *Router {
+	return &Router{}
 }
 
-func (r Router) AddNext(name string, router Router) Router {
-	if router.fallbackHandler == nil && r.fallbackHandler != nil {
-		router.fallbackHandler = r.fallbackHandler
-	}
-	names := strings.Split(name, "|")
-	for _, currentName := range names {
-		r.next[currentName] = router
-	}
+func (r *Router) SetParent(parent *Router) *Router {
+	r.parent = parent
 	return r
 }
 
-func (r Router) SetChildHandler(name string, handler Handler) Router {
-	r.childHandlers[name] = handler
+func (r *Router) AddNext(router *Router) *Router {
+	router.parent = r
+	r.next = append(r.next, router)
+	return r
+}
+func (r *Router) AddNextRoute(args string, router *Router) *Router {
+	router.SetArgs(args)
+	return r.AddNext(router)
+}
+
+func (r *Router) CreateNext() *Router {
+	router := NewRouter().SetParent(r)
+	r.next = append(r.next, router)
+	return router
+}
+func (r *Router) CreateNextRoute(args string) *Router {
+	return r.CreateNext().SetArgs(args)
+}
+
+func (r *Router) SetArgs(args string) *Router {
+	r.args = []argsMatcher{newArgsMatcher(args)}
+	return r
+}
+func (r *Router) AddArgs(args string) *Router {
+	r.args = append(r.args, newArgsMatcher(args))
 	return r
 }
 
-func (r Router) SetHandler(handler Handler) Router {
-	r.handler = handler
+func (r *Router) SetHandlerFunc(h RouterHandlerFunc) *Router {
+	r.handlerFuncs = append(r.handlerFuncs, RouterHandlerFuncMatcher{handler: h})
+	return r
+}
+func (r *Router) AddHandlerFunc(args string, h RouterHandlerFunc) *Router {
+	r.handlerFuncs = append(r.handlerFuncs, RouterHandlerFuncMatcher{matcher: newArgsMatcher(args), handler: h})
 	return r
 }
 
-func (r Router) SetFallbackHandler(handler Handler) Router {
-	r.fallbackHandler = handler
-	return r
-}
-
-func (r Router) SetContextPrefix(prefix string) Router {
-	r.contextPrefix = prefix
-	return r
-}
-
-func (r Router) Resolve(ctx context.Context, args []string) error {
-	if r.contextPrefix != "" {
-		prefixParts := strings.Split(r.contextPrefix, " ")
-		if len(args) < len(prefixParts) {
-			return errors.New("not enough args for prefix")
-		}
-		for _, part := range prefixParts {
-			ctx = context.WithValue(ctx, part, args[0])
-			args = args[1:]
-		}
-	}
-	if len(args) > 0 {
-		if next, found := r.next[args[0]]; found {
-			return next.Resolve(ctx, args[1:])
-		}
-		for key, handler := range r.childHandlers {
-			names := strings.Split(key, "|")
-			for _, name := range names {
-				if name == args[0] {
-					return handler(ctx, args[1:])
-				}
-			}
+func (r *Router) matchArgs(ctx context.Context, args []string) (bool, context.Context, []string) {
+	for _, arg := range r.args {
+		if match, newCtx, newArgs := arg.match(ctx, args); match {
+			ctx = newCtx
+			args = newArgs
+		} else {
+			return false, ctx, args
 		}
 	}
-	if r.handler != nil {
-		return r.handler(ctx, args)
-	}
-	if r.handler == nil && r.fallbackHandler == nil {
-		return errors.New("handler is nil")
-	}
-	if r.fallbackHandler == nil {
-		return errors.New("fallback handler is nil")
-	}
-	return r.fallbackHandler(ctx, args)
+	return true, ctx, args
+}
+
+func (r *Router) Resolve(ctx context.Context, args []string) (RouterResolve, bool) {
+	return resolveRouter(r, ctx, args)
 }
