@@ -1,38 +1,33 @@
 package console
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
-type RouterResolve struct {
-	router *Router
-	Ctx    context.Context
-	Args   []string
-	Fn     RouterHandlerFunc
+type RouterResolve interface {
+	Resolved() bool
+	Finished() bool
+	Execute() error
 }
 
-func resolveRouter(router *Router, ctx context.Context, args []string) (RouterResolve, bool) {
-	r := RouterResolve{
-		router: router,
-		Ctx:    ctx,
-		Args:   args,
-	}
-	if match, ctx, args := r.router.matchArgs(ctx, args); match {
-		r.Ctx = ctx
-		r.Args = args
-	} else {
-		return r, false
-	}
-	for _, next := range r.router.next {
-		if resolver, resolved := resolveRouter(next, r.Ctx, r.Args); resolved {
-			return resolver, true
-		}
-	}
-	for _, fn := range r.router.handlerFuncs {
-		if match, ctx, args := fn.matcher.match(r.Ctx, r.Args); match {
-			r.Ctx = ctx
-			r.Args = args
-			r.Fn = fn.handler
-			return r, true
-		}
-	}
-	return r, false
+type RouterMatchResolver interface {
+	Match(route string) bool
+	Resolve(ctx context.Context, args []string) RouterResolve
+}
+
+func RouterUnresolved() RouterResolve {
+	return &unresolved{}
+}
+
+type unresolved struct{}
+
+func (impl *unresolved) Resolved() bool {
+	return false
+}
+func (impl *unresolved) Finished() bool {
+	return true
+}
+func (impl *unresolved) Execute() error {
+	return errors.New("args route is unresolved, no implementation given")
 }
