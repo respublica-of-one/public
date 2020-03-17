@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+type echoArgs struct {
+	Source      string `posix_args:"source,from,src,s" posix_options:"required"`
+	Destination string `posix_args:"destination,to,dst,d" posix_default:"home"`
+}
+
 func echo(ctx context.Context, args []string) error {
 	fmt.Println("echo")
 	if value := ctx.Value("value"); value != nil {
