@@ -1,58 +1,81 @@
 package console
 
 import (
-	"context"
-	"errors"
+	"os"
 	"strings"
 )
 
-type Handler func(context.Context, []string) error
-
 type Router struct {
-	contextPrefix string
-	next          map[string]Router
-	handler       Handler
+	path    string
+	match   RouterMatchHandlerFunc
+	next    []*Router
+	resolve RouterResolver
 }
 
-func NewRouter() Router {
-	return Router{
-		next: make(map[string]Router),
+func NewRouter(path string) *Router {
+	return &Router{path: path}
+}
+func NewAppRouter() *Router {
+	return &Router{
+		path:    strings.ToLower(os.Args[0]),
+		match:   RouterMatchIgnoreCaseStringHandler(os.Args[0]),
+		next:    nil,
+		resolve: nil,
 	}
 }
+func (r *Router) SetMatcherFunc(fn RouterMatchHandlerFunc) *Router {
+	r.match = fn
+	return r
+}
+func (r *Router) AddNextRouter(router *Router) *Router {
+	r.next = append(r.next, router)
+	return r
+}
+func (r *Router) PutNextRouter(router *Router) *Router {
+	r.next = append(r.next, router)
+	return router
+}
+func (r *Router) PatchNextRouter(router *Router) *Router {
+	for _, next := range r.next {
+		if next.path == router.path {
+			return next
+		}
+	}
+	r.next = append(r.next, router)
+	return router
+}
 
-func (r Router) AddNext(name string, router Router) Router {
-	r.next[name] = router
+func (r *Router) CreateNextPath(path []string) *Router {
+	resultRouter := r
+	for _, pattern := range path {
+		if next, err := buildNext(pattern); err == nil {
+			resultRouter = resultRouter.PatchNextRouter(NewRouter(pattern).SetMatcherFunc(next))
+		}
+	}
+	return resultRouter
+}
+func (r *Router) CreateNext(path string) *Router {
+	return r.CreateNextPath(strings.Split(path, " "))
+}
+func (r *Router) AddNextPath(path []string) *Router {
+	_ = r.CreateNextPath(path)
+	return r
+}
+func (r *Router) AddNext(path string) *Router {
+	return r.AddNextPath(strings.Split(path, " "))
+}
+
+func (r *Router) SetResolver(resolve RouterResolver) *Router {
+	r.resolve = resolve
 	return r
 }
 
-func (r Router) SetHandler(handler Handler) Router {
-	r.handler = handler
-	return r
+func (r *Router) SetHandlerFunc(fn RouterHandlerFunc) *Router {
+	return r.SetResolver(newRouterHandlerFuncEndpoint(fn))
 }
-
-func (r Router) SetContextPrefix(prefix string) Router {
-	r.contextPrefix = prefix
-	return r
+func (r *Router) AddHandlerFuncPath(path []string, fn RouterHandlerFunc) *Router {
+	return r.CreateNextPath(path).SetHandlerFunc(fn)
 }
-
-func (r Router) Resolve(ctx context.Context, args []string) error {
-	if r.contextPrefix != "" {
-		prefixParts := strings.Split(r.contextPrefix, " ")
-		if len(args) < len(prefixParts) {
-			return errors.New("not enough args for prefix")
-		}
-		for _, part := range prefixParts {
-			ctx = context.WithValue(ctx, part, args[0])
-			args = args[1:]
-		}
-	}
-	if len(args) > 0 {
-		if next, found := r.next[args[0]]; found {
-			return next.Resolve(ctx, args[1:])
-		}
-	}
-	if r.handler == nil {
-		return errors.New("handler is nil")
-	}
-	return r.handler(ctx, args)
+func (r *Router) AddHandlerFunc(path string, fn RouterHandlerFunc) *Router {
+	return r.CreateNext(path).SetHandlerFunc(fn)
 }
