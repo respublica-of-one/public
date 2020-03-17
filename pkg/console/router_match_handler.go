@@ -6,7 +6,6 @@ import (
 )
 
 type RouterMatchHandlerFunc func(c *RouterContext, arg string) (bool, error)
-type RouterMatchHandlerBuilderFunc func(pattern string) RouterMatchHandlerFunc
 
 func RouterMatchStringHandler(pattern string) RouterMatchHandlerFunc {
 	return func(c *RouterContext, arg string) (bool, error) {
@@ -28,5 +27,16 @@ func RouterMatchCtxHandler(pattern string) RouterMatchHandlerFunc {
 	return func(c *RouterContext, arg string) (bool, error) {
 		c.Ctx = context.WithValue(c.Ctx, pattern, arg)
 		return true, nil
+	}
+}
+func RouterMatchDelimitedListItem(pattern string) RouterMatchHandlerFunc {
+	patterns := strings.Split(pattern, "\n")
+	return func(c *RouterContext, arg string) (bool, error) {
+		for _, pat := range patterns {
+			if pat == arg {
+				return true, nil
+			}
+		}
+		return false, nil
 	}
 }

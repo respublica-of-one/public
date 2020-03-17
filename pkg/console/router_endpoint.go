@@ -20,7 +20,7 @@ func newRouterHandlerFuncEndpoint(fn RouterHandlerFunc) routerHandlerFuncEndpoin
 	}
 }
 func (e routerHandlerFuncEndpoint) Resolve(c *RouterContext) (RouterEndpoint, error) {
-	e.ctx = c.Ctx
+	e.ctx = context.WithValue(c.Ctx, ROUTER_META_CTX_NAME, c.Meta)
 	e.args = c.Args
 	return e, nil
 }

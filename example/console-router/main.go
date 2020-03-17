@@ -4,32 +4,41 @@ import (
 	"context"
 	"fmt"
 	"github.com/respublica-of-one/public/pkg/console"
+	"strings"
 )
+
+func echo(ctx context.Context, args []string) error {
+	fmt.Println("echo")
+	if value := ctx.Value("value"); value != nil {
+		fmt.Printf("VALUE: %+v\n", value)
+	}
+	path := ctx.Value(console.ROUTER_META_CTX_NAME)
+	if path != nil {
+		fmt.Printf("RUNNING WITH META: %+v\n", path)
+	}
+	fmt.Printf("\targs: %+v\n", args)
+	return nil
+}
 
 func main() {
 
-	router := console.NewRouter().
-		AddNext("first", console.NewRouter()).
-		AddNext("second",
-			console.NewRouter().
-				SetHandler(func(ctx context.Context, strings []string) error {
-					fmt.Printf("Context: %+v\nArgs: %+v\n", ctx, strings)
-					return nil
-				})).
-		SetHandler(func(ctx context.Context, strings []string) error {
-			fmt.Printf("Context: %+v\nArgs: %+v\n", ctx, strings)
-			return nil
-		})
+	console.RegisterNextBuilderFunc(console.RouterNextMatchPrefix("ctx:"), console.RouterMatchCtxHandler)
+	console.RegisterNextBuilderFunc(console.RouterNextMatchDelimitedList(","), console.RouterMatchDelimitedListItem)
 
-	router = router.AddNext("ctx", console.NewRouter().
-		SetContextPrefix("one two").
-		SetHandler(func(ctx context.Context, strings []string) error {
-			val1 := ctx.Value("one").(string)
-			fmt.Printf("Context: %+v\nArgs: %+v\n", ctx, strings)
-			fmt.Printf("one: %s\n", val1)
-			return nil
-		}))
+	router := console.NewRouter("application").SetMatcherFunc(console.RouterMatchIgnoreCaseStringHandler("application"))
+	router.CreateNext("id list,ls ctx:value").SetHandlerFunc(echo)
+	router.AddNext("id get ctx:name").
+		CreateNext("id set ctx:name").AddHandlerFunc("handler one", echo)
 
-	fmt.Println(router.Resolve(context.Background(), []string{"ctx", "no1", "no2", "arg1", "arg2"}))
+	args := strings.Split("appLication id ls something", " ")
 
+	resolve, err := router.Resolve(&console.RouterContext{
+		Ctx:  context.Background(),
+		Args: args,
+	})
+	if err != nil {
+		fmt.Printf("error on resolve: %s\n", err)
+	}
+	fmt.Printf("resolve: %+v\n", resolve)
+	fmt.Printf("run: %s\n", resolve.Execute())
 }

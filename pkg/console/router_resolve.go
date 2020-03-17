@@ -5,12 +5,22 @@ import (
 	"errors"
 )
 
+const ROUTER_META_CTX_NAME = "_meta"
+
 var ErrNotEnoughArgs = errors.New("not enough args")
 var ErrEndpointNotDefined = errors.New("endpoint handler not defined")
 
 type RouterContext struct {
 	Ctx  context.Context
 	Args []string
+	Meta RouterMeta
+}
+type RouterMeta struct {
+	Resolved []RouterMetaPathResolve
+}
+type RouterMetaPathResolve struct {
+	Arg  string
+	Path string
 }
 
 type RouterResolver interface {
@@ -28,6 +38,10 @@ func (r *Router) Resolve(c *RouterContext) (RouterEndpoint, error) {
 	if !match {
 		return nil, nil
 	}
+	c.Meta.Resolved = append(c.Meta.Resolved, RouterMetaPathResolve{
+		Arg:  c.Args[0],
+		Path: r.path,
+	})
 	c.Args = c.Args[1:]
 	for _, next := range r.next {
 		if endpoint, err := next.Resolve(c); endpoint != nil || err != nil {
