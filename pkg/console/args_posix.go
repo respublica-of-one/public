@@ -10,6 +10,57 @@ const posixArgNamesTag = "posix_args"
 const posixOptionsTag = "posix_options"
 const posixDefaultsTag = "posix_default"
 
+type posixOptions struct {
+	touchDefaults  bool
+	flag           bool
+	required       bool
+	defaultsString string
+	names          []string
+}
+type posixField struct {
+	fieldName  string
+	fieldType  string
+	options    posixOptions
+	fieldIsSet bool
+}
+type posixFieldsParser struct {
+	fields []posixField
+	target reflect.Value
+}
+
+func newPosixFieldsParser(v interface{}) posixFieldsParser {
+	parser := posixFieldsParser{
+		target: reflect.ValueOf(v).Elem(),
+	}
+	t := reflect.TypeOf(v)
+	var fields []posixField
+	for index := 0; index < t.NumField(); index++ {
+		f := t.Field(index)
+		if names, found := f.Tag.Lookup(posixArgNamesTag); found {
+			field := posixField{
+				fieldName: f.Name,
+				fieldType: f.Type.String(),
+			}
+			field.options.names = strings.Split(names, ",")
+			field.options.defaultsString = f.Tag.Get(posixDefaultsTag)
+			options := strings.Split(f.Tag.Get(posixOptionsTag), ",")
+			for _, option := range options {
+				switch option {
+				case "required":
+					field.options.required = true
+				case "touchDefaults":
+					field.options.touchDefaults = true
+				case "flag":
+					field.options.flag = true
+				}
+			}
+			fields = append(fields, field)
+		}
+	}
+	parser.fields = fields
+	return parser
+}
+
 type posixArg struct {
 	fieldName   string
 	argType     string
