@@ -11,6 +11,7 @@ import (
 type echoArgs struct {
 	Source      string `posix_args:"source,from,src,s" posix_options:"required"`
 	Destination string `posix_args:"destination,to,dst,d" posix_default:"home"`
+	Flag        bool   `posix_args:"flag,f" posix_options:"flag"`
 }
 
 func echo(ctx context.Context, args []string) error {
@@ -41,7 +42,7 @@ func main() {
 	router.AddNext("id get ctx:name").
 		CreateNext("id set ctx:name").AddHandlerFunc("handler one", echo)
 
-	args := strings.Split("appLication id ls something -sd here", " ")
+	args := strings.Split("appLication id ls something --source where -df here", " ")
 
 	resolve, err := router.Resolve(&console.RouterContext{
 		Ctx:  context.Background(),

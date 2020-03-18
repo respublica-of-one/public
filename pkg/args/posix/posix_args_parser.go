@@ -107,10 +107,12 @@ func (p *posixFieldsParser) parse(args []string) error {
 		if strings.HasPrefix(arg, "--") {
 			fields = []*posixField{}
 			argName := strings.TrimPrefix(arg, "--")
-			if field, err := p.touchField(argName); err == nil {
-				fields = append(fields, field)
-			} else {
+			field, err := p.touchField(argName)
+			if err != nil {
 				return err
+			}
+			if field != nil {
+				fields = append(fields, field)
 			}
 			continue
 		}
@@ -118,10 +120,12 @@ func (p *posixFieldsParser) parse(args []string) error {
 			fields = []*posixField{}
 			argNames := []rune(strings.TrimPrefix(arg, "-"))
 			for _, argName := range argNames {
-				if field, err := p.touchField(string(argName)); err == nil {
-					fields = append(fields, field)
-				} else {
+				field, err := p.touchField(string(argName))
+				if err != nil {
 					return err
+				}
+				if field != nil {
+					fields = append(fields, field)
 				}
 			}
 			continue
