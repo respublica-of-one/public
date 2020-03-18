@@ -37,7 +37,7 @@ func main() {
 	console.RegisterNextBuilderFunc(console.RouterNextMatchPrefix("ctx:"), console.RouterMatchCtxHandler)
 	console.RegisterNextBuilderFunc(console.RouterNextMatchDelimitedList(","), console.RouterMatchDelimitedListItem)
 
-	router := console.NewRouter("application").SetMatcherFunc(console.RouterMatchIgnoreCaseStringHandler("application"))
+	router := console.NewRouter("application").SetMatcherFunc(console.RouterMatchWriteExecName())
 	router.CreateNext("id list,ls ctx:value").SetHandlerFunc(echo)
 	router.AddNext("id get ctx:name").
 		CreateNext("id set ctx:name").AddHandlerFunc("handler one", echo)
