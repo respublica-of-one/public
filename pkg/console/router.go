@@ -18,7 +18,7 @@ func NewRouter(path string) *Router {
 func NewAppRouter() *Router {
 	return &Router{
 		path:    strings.ToLower(os.Args[0]),
-		match:   RouterMatchIgnoreCaseStringHandler(os.Args[0]),
+		match:   RouterMatchWriteExecName(),
 		next:    nil,
 		resolve: nil,
 	}

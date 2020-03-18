@@ -7,6 +7,12 @@ import (
 
 type RouterMatchHandlerFunc func(c *RouterContext, arg string) (bool, error)
 
+func RouterMatchWriteExecName() RouterMatchHandlerFunc {
+	return func(c *RouterContext, arg string) (bool, error) {
+		c.Meta.ExecName = arg
+		return true, nil
+	}
+}
 func RouterMatchStringHandler(pattern string) RouterMatchHandlerFunc {
 	return func(c *RouterContext, arg string) (bool, error) {
 		if arg == pattern {

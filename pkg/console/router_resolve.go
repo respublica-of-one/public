@@ -16,6 +16,7 @@ type RouterContext struct {
 	Meta RouterMeta
 }
 type RouterMeta struct {
+	ExecName string
 	Resolved []RouterMetaPathResolve
 }
 type RouterMetaPathResolve struct {
