@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/respublica-of-one/public/pkg/args/posix"
 	"github.com/respublica-of-one/public/pkg/console"
 	"strings"
 )
@@ -22,6 +23,11 @@ func echo(ctx context.Context, args []string) error {
 		fmt.Printf("RUNNING WITH META: %+v\n", path)
 	}
 	fmt.Printf("\targs: %+v\n", args)
+	var a echoArgs
+	if err := posix.ParseArgs(&a, args); err != nil {
+		return err
+	}
+	fmt.Printf("EchoArgs: %+v\n", a)
 	return nil
 }
 
@@ -35,7 +41,7 @@ func main() {
 	router.AddNext("id get ctx:name").
 		CreateNext("id set ctx:name").AddHandlerFunc("handler one", echo)
 
-	args := strings.Split("appLication id ls something", " ")
+	args := strings.Split("appLication id ls something -sd here", " ")
 
 	resolve, err := router.Resolve(&console.RouterContext{
 		Ctx:  context.Background(),
